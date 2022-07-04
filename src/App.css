@@ -1,0 +1,133 @@
+@import url("https://fonts.googleapis.com/css2?family=Jua&display=swap");
+
+* {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+}
+
+main {
+  text-align: center;
+  vertical-align: center;
+  margin-top: 5em;
+  font-family: "Jua", sans-serif;
+}
+
+.search--container {
+  /*   border: 1px magenta solid; */
+  margin: 1em auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 60%;
+  max-width: 600px;
+}
+
+.search--container form {
+  width: 100%;
+}
+
+.search--container input {
+  font-family: inherit;
+  font-size: 2rem;
+  border: 0;
+  border-bottom: 3px solid black;
+  outline: 0;
+  background: transparent;
+  width: 100%;
+}
+
+.search-results--container {
+  width: 100%;
+}
+
+.search-result--container {
+  display: flex;
+  padding: 1em;
+  margin: 0.5em auto;
+  align-items: center;
+  border: 3px black solid;
+  cursor: pointer;
+}
+
+.search-result--container:hover {
+  background: #fee402;
+}
+
+.search-result--logo {
+  object-fit: cover;
+  height: 50px;
+  width: 50px;
+  margin-right: 10px;
+  border-radius: 9999px;
+}
+
+.collection--container {
+  /*   border: red 1px solid; */
+  margin: 2em auto;
+  max-width: 95%;
+}
+
+.collection--name {
+  font-size: 2rem;
+  text-align: left;
+  margin-left: 1em;
+}
+
+.collection-nfts--container {
+  /*   border: 1px magenta solid; */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+}
+
+.nft-card--container {
+  /*   border: magenta 1px solid; */
+  max-width: 45%;
+  margin-bottom: 1em;
+}
+
+@media only screen and (min-width: 700px) {
+  .collection--container {
+    max-width: 70%;
+  }
+
+  .nft-card--container {
+    max-width: 30%;
+  }
+}
+
+@media only screen and (min-width: 1060px) {
+  .nft-card--container {
+    max-width: 20%;
+  }
+}
+
+.nft-card--image-container {
+  position: relative;
+}
+
+.nft-card--tokenId {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
+  font-size: 0.75rem;
+  background-color: #fff;
+  padding: 0.1rem 0.5rem;
+  border: 2px solid #000;
+  border-radius: 10px;
+}
+
+.nft-card--image {
+  max-width: 100%;
+  height: auto;
+}
+
+.nft-card--name {
+  text-align: left;
+  margin-left: 0.5em;
+  font-size: 0.8rem;
+}
