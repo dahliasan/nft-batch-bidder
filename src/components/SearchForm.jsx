@@ -12,7 +12,8 @@ function SearchForm(props) {
   const { loading, error, hasMore, data } = useCollectionSearch(
     query,
     selectedContractAddress,
-    pageNumber
+    pageNumber,
+    selectedTraits
   )
 
   const { collections, collectionNfts, collectionMetadata } = data || {}

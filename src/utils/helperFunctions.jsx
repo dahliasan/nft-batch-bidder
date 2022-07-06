@@ -40,3 +40,9 @@ export function shortenAddress(str, startLength = 6, endLength = 4) {
     str.substring(str.length - endLength)
   )
 }
+
+export function toTitleCase(str) {
+  return str.replace(/\w\S*/g, function (txt) {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  })
+}
