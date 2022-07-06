@@ -12,13 +12,11 @@ function useCollectionSearch(
 ) {
   const [loading, setLoading] = useState(false) // change loading to an object
   const [error, setError] = useState(false)
-  const [collections, setCollections] = useState(null) // create a response object and consolidate the different responses inside.
-  const [collectionNfts, setCollectionNfts] = useState(null)
   const [hasMore, setHasMore] = useState(false)
-  const [collectionInfo, setCollectionInfo] = useState(null)
+  const [data, setData] = useState({})
 
   useEffect(() => {
-    setCollectionNfts(null)
+    setData((prevData) => ({ ...prevData, collectionNfts: null }))
   }, [selectedContractAddress])
 
   // Fetch collections from search query
@@ -39,7 +37,7 @@ function useCollectionSearch(
       axios(config)
         .then((res) => {
           console.log('search collections', res.data)
-          setCollections(res.data)
+          setData((prevData) => ({ ...prevData, collections: res.data }))
           setLoading(false)
         })
         .catch((err) => {
@@ -47,7 +45,7 @@ function useCollectionSearch(
           setError(true)
         })
     } else {
-      setCollections(null)
+      setData((prevData) => ({ ...prevData, collections: null }))
       setLoading(false)
       setError(false)
     }
@@ -89,7 +87,7 @@ function useCollectionSearch(
         .then(([nftsRes, contractRes]) => {
           console.log(nftsRes, contractRes)
 
-          setCollectionNfts(nftsRes.data)
+          setData((prevData) => ({ ...prevData, collectionNfts: nftsRes.data }))
           setHasMore(nftsRes.data.total - pageNumber * 50 > 0)
 
           // get all of collection's traits and values from Opensea API
@@ -100,7 +98,10 @@ function useCollectionSearch(
           }
           axios(getCollectionInfoConfig).then((res) => {
             console.log(res.data)
-            setCollectionInfo(res.data.collection)
+            setData((prevData) => ({
+              ...prevData,
+              collectionMetadata: res.data.collection,
+            }))
           })
         })
         .catch((err) => {
@@ -118,7 +119,7 @@ function useCollectionSearch(
     return () => cancel()
   }, [selectedContractAddress])
 
-  // Load more nfts when user scrolls to the bottom of page
+  // Load more nfts when user scrolls to the bottom of page (infinite scoll feature)
   useEffect(() => {
     if (!selectedContractAddress) return // ignore first render
     let cancel
@@ -130,12 +131,18 @@ function useCollectionSearch(
     setError(false)
     axios(getCollectionNftsConfig)
       .then((nftsRes) => {
-        setCollectionNfts((prevData) => {
+        setData((prevData) => {
+          let nftsObj = prevData.collectionNfts
+          nftsObj = {
+            ...nftsObj,
+            nfts: [...nftsObj.nfts, ...nftsRes.data.nfts],
+          }
           return {
             ...prevData,
-            nfts: [...prevData.nfts, ...nftsRes.data.nfts],
+            collectionNfts: nftsObj,
           }
         })
+
         setHasMore(nftsRes.data.total - pageNumber * 50 > 0)
       })
       .catch((err) => {
@@ -154,12 +161,10 @@ function useCollectionSearch(
   }, [selectedTraits])
 
   return {
-    collections,
     loading,
     error,
-    collectionNfts,
     hasMore,
-    collectionInfo,
+    data,
   }
 }
 

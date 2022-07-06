@@ -9,18 +9,17 @@ function SearchForm(props) {
   const [selectedContractAddress, setSelectedContractAddress] = useState(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [selectedTraits, setSelectedTraits] = useState(null)
-  const {
-    collections,
-    loading,
-    error,
-    collectionNfts,
-    hasMore,
-    collectionInfo,
-  } = useCollectionSearch(query, selectedContractAddress, pageNumber)
+  const { loading, error, hasMore, data } = useCollectionSearch(
+    query,
+    selectedContractAddress,
+    pageNumber
+  )
+
+  const { collections, collectionNfts, collectionMetadata } = data || {}
 
   const filterOptions = useMemo(() => {
     return createFilterOptions()
-  }, [collectionInfo])
+  }, [collectionMetadata])
 
   useEffect(() => {
     setSelectedTraits(null)
@@ -44,8 +43,8 @@ function SearchForm(props) {
   )
 
   function createFilterOptions() {
-    if (!collectionInfo) return
-    const { traits } = collectionInfo
+    if (!collectionMetadata) return
+    const { traits } = collectionMetadata
     const filterOptions = Object.entries(traits).map((item) => {
       let [label, options] = item
 
