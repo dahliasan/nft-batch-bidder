@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { COLLECTION_URL, NFT_URL, API_KEYS } from '../utils/api.js'
+import { API_KEYS } from '../utils/api.js'
 
 function useCollectionSearch(
   query,
@@ -16,7 +16,6 @@ function useCollectionSearch(
   const [collectionNfts, setCollectionNfts] = useState(null)
   const [hasMore, setHasMore] = useState(false)
   const [collectionInfo, setCollectionInfo] = useState(null)
-  const [data, setData] = useState({})
 
   useEffect(() => {
     setCollectionNfts(null)
@@ -27,7 +26,7 @@ function useCollectionSearch(
     let cancel
     const config = {
       method: 'GET',
-      url: COLLECTION_URL,
+      url: `https://ubiquity.api.blockdaemon.com/v1/nft/ethereum/mainnet/collections/search`,
       headers: { Authorization: `Bearer ${API_KEYS.ubiquity}` },
       params: {
         name: query,
@@ -63,7 +62,7 @@ function useCollectionSearch(
     params: { chain: 'ethereum', include: 'all', page_number: pageNumber },
     headers: {
       'Content-Type': 'application/json',
-      Authorization: 'ae102b1f-3d0c-42dd-ba2f-b192b641f82f',
+      Authorization: API_KEYS.nftport,
     },
   }
 

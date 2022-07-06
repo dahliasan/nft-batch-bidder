@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import SearchResultCard from './SearchResultCard.jsx'
 import useCollectionSearch from '../hooks/useCollectionSearch.js'
-import { API_KEYS } from '../utils/api.js'
 import { renderFile, shortenAddress } from '../utils/helperFunctions.jsx'
 import Select from 'react-select'
 
@@ -73,9 +72,8 @@ function SearchForm(props) {
     setPageNumber(1)
   }
 
-  function handleClick(data, API_KEY = API_KEYS.moralis) {
-    console.log('clicked!')
-    // setSelected((prev) => prev + 1)
+  function handleSearchClick(data) {
+    console.log('a collection is selected!')
     setSelectedContractAddress(data.contracts[0])
     setQuery('')
   }
@@ -186,8 +184,7 @@ function SearchForm(props) {
                   <SearchResultCard
                     key={index}
                     data={item}
-                    API_KEY={API_KEYS}
-                    handleClick={handleClick}
+                    handleClick={handleSearchClick}
                   />
                 )
               })}
