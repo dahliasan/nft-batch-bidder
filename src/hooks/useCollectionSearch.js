@@ -156,8 +156,41 @@ function useCollectionSearch(
     return () => cancel()
   }, [pageNumber])
 
+  // Query collection nfts by selected traits
   useEffect(() => {
     if (!selectedTraits) return
+    let cancel
+    console.log('traits are selected!', selectedTraits)
+
+    const generateUrl = () => {
+      let url = `https://ubiquity.api.blockdaemon.com/v1/nft/ethereum/mainnet/assets?contract_address=${selectedContractAddress}`
+      let attributesParams = selectedTraits
+        .map((item) => `&attributes=${item.value}`)
+        .join('')
+      return url + attributesParams
+    }
+
+    const config = {
+      method: 'GET',
+      url: generateUrl(),
+      headers: { Authorization: `Bearer ${API_KEYS.ubiquity}` },
+      cancelToken: new axios.CancelToken((c) => (cancel = c)),
+    }
+    console.log(config.url)
+    setLoading(true)
+    setError(false)
+    axios(config)
+      .then((res) => {
+        console.log('get nfts by traits', res.data)
+        // setData((prevData) => ({ ...prevData, collectionNfts: res.data }))
+        setLoading(false)
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return
+        setError(true)
+      })
+
+    return () => cancel()
   }, [selectedTraits])
 
   return {
