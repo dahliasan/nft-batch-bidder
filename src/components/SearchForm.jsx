@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import SearchResultCard from './SearchResultCard.jsx'
-import useCollectionSearch from '../hooks/useCollectionSearch.js'
+import useSearchCollections from '../hooks/useSearchCollections.js'
+import useGetCollectionData from '../hooks/useGetCollectionData.js'
 import { resolveUrl, shortenString } from '../utils/helperFunctions.jsx'
 import Select from 'react-select'
+import { nanoid } from 'nanoid'
 
 function SearchForm(props) {
   const [query, setQuery] = useState('')
@@ -12,18 +14,20 @@ function SearchForm(props) {
   })
   const [pageNumber, setPageNumber] = useState(1)
   const [selectedTraits, setSelectedTraits] = useState([])
-  const { loading, error, hasMore, data } = useCollectionSearch(
-    query,
-    selectedCollection,
-    pageNumber,
-    selectedTraits
-  )
+  const { loading: searchLoading, data: collectionSearch } =
+    useSearchCollections(query)
+  const {
+    loading: collectionLoading,
+    data: collectionData,
+    error,
+    hasMore,
+  } = useGetCollectionData(selectedCollection, pageNumber, selectedTraits) || {}
 
-  const { collectionSearch, collectionNfts, collectionMetadata } = data || {}
+  const { collectionNfts, collectionInfo } = collectionData || {}
 
   const traitOptions = useMemo(() => {
     return createTraitOptions()
-  }, [collectionMetadata])
+  }, [collectionInfo])
 
   useEffect(() => {
     setSelectedTraits([])
@@ -37,7 +41,7 @@ function SearchForm(props) {
   const observer = useRef()
   const lastNftElementRef = useCallback(
     (node) => {
-      if (loading) return
+      if (collectionLoading.nftsLoading) return
       if (observer.current) observer.current.disconnect()
       observer.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && hasMore) {
@@ -47,13 +51,13 @@ function SearchForm(props) {
       })
       if (node) observer.current.observe(node)
     },
-    [loading, hasMore]
+    [collectionLoading, hasMore]
   )
 
   function createTraitOptions() {
-    if (!collectionMetadata) return
+    if (!collectionInfo?.traits) return
 
-    const { info } = collectionMetadata
+    const { info } = collectionInfo.traits || {}
 
     let optionsOutput = []
 
@@ -106,14 +110,16 @@ function SearchForm(props) {
   }
 
   function handleSearchClick(name, contractAddress) {
-    console.log(`--- collection ${name} ${contractAddress} is selected!`)
+    console.log(`collection ${name} ${contractAddress} is selected!`)
     setSelectedCollection({ name: name, address: contractAddress })
     setQuery('')
   }
 
   function renderNftSection() {
-    console.log('--- rendering nfts...', collectionNfts)
-    const { contract, nfts, response, total } = collectionNfts || {}
+    if (!collectionInfo) return
+    console.log('rendering nfts...')
+    const nfts = collectionNfts
+    const { info } = collectionInfo.info
 
     // get nft html
     const nftsHtml = nfts.map((item, index) => {
@@ -121,13 +127,13 @@ function SearchForm(props) {
       const { name, attributes, image } = metadata || {}
       const isLastElement = nfts.length === index + 1
 
-      const attributesHtml = attributes?.map((item, index) => {
+      const attributesHtml = attributes?.map((item) => {
         let { trait_type, value } = item || {}
 
         value = shortenString(value)
 
         return (
-          <div key={`${index}`} className="nft-card--trait">
+          <div key={nanoid()} className="nft-card--trait">
             <div>{trait_type}</div>
             <div className="trait--value">{value}</div>
           </div>
@@ -136,7 +142,7 @@ function SearchForm(props) {
 
       return (
         <div
-          key={token_id}
+          key={nanoid()}
           ref={isLastElement ? lastNftElementRef : null}
           className="nft-card--container"
         >
@@ -156,10 +162,12 @@ function SearchForm(props) {
     return (
       <div className="collection--container">
         <div className="collection--info">
-          <img src={contract.metadata.thumbnail_url} />
+          <img src={info.imageUrl} />
           <div className="collection--info-text-container">
-            <div className="collection--name">{contract.name}</div>
-            <div className="collection--total">Total Supply -- {total}</div>
+            <div className="collection--name">{info.name}</div>
+            <div className="collection--total">
+              Total Supply -- {info.statistics.totalSupply}
+            </div>
           </div>
           <Select
             id="select"
@@ -175,14 +183,10 @@ function SearchForm(props) {
           />
         </div>
 
-        {loading && selectedTraits.length > 0 ? (
-          ''
-        ) : (
-          <div className="collection-nfts--container">{nftsHtml}</div>
-        )}
+        <div className="collection-nfts--container">{nftsHtml}</div>
 
-        <div>{loading && 'Loading...'}</div>
-        <div>{error && 'ERROR, you are probably scrolling too fast'}</div>
+        <div>{collectionLoading.nftsLoading && 'Loading...'}</div>
+        <div>{error && 'ERROR, try refreshing'}</div>
       </div>
     )
   }
@@ -199,14 +203,14 @@ function SearchForm(props) {
           placeholder="search for a collection"
         />
 
-        {loading && !collectionNfts && 'loading...'}
+        {searchLoading && 'loading...'}
 
         <div className="search-results--container">
           {collectionSearch &&
-            collectionSearch.collections.map((collection, index) => {
+            collectionSearch.collections.map((collection) => {
               return (
                 <SearchResultCard
-                  key={index}
+                  key={nanoid()}
                   collection={collection}
                   handleClick={handleSearchClick}
                 />
@@ -215,7 +219,7 @@ function SearchForm(props) {
         </div>
       </div>
 
-      {collectionNfts && renderNftSection()}
+      {collectionInfo?.info && renderNftSection()}
     </div>
   )
 }

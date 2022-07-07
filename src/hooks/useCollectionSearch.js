@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { API_KEYS } from '../utils/api.js'
-
-const module_header = {
-  Accept: 'application/json',
-  'X-API-KEY': API_KEYS.module,
-}
+import module_header from '../utils/moduleApiHeader'
 
 function useCollectionSearch(
   query,
@@ -15,7 +10,7 @@ function useCollectionSearch(
   pageNumber,
   selectedTraits
 ) {
-  const [loading, setLoading] = useState(false) // change loading to an object
+  const [loading, setLoading] = useState(false) // change loading to an object?
   const [error, setError] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [data, setData] = useState({})
@@ -124,32 +119,143 @@ function useCollectionSearch(
     return () => cancel()
   }, [selectedCollection, selectedTraits])
 
-  // Load more nfts when user scrolls to the bottom of page (infinite scoll feature)
   useEffect(() => {
-    if (!selectedCollection.address || selectedTraits.length > 0) return // ignore first render
+    if (!selectedCollection.address) return
 
     let cancel
+
+    async function getTokens() {
+      const traitsParams =
+        selectedTraits.length > 0
+          ? selectedTraits.map((item) => `&stringTraits=${item.value}`).join('')
+          : ''
+
+      const getTokensConfig = {
+        method: 'GET',
+        url:
+          `https://api.modulenft.xyz/api/v1/opensea/collection/tokens?` +
+          traitsParams,
+        params: {
+          type: selectedCollection.address,
+          count: 25,
+          offset: 0,
+        },
+        headers: module_header,
+        cancelToken: new axios.CancelToken((c) => (cancel = c)),
+      }
+
+      const getCollectionTraitsConfig = {
+        method: 'GET',
+        headers: module_header,
+        url: `https://api.modulenft.xyz/api/v1/opensea/collection/traits?type=${selectedCollection.address}`,
+      }
+
+      const getCollectionInfoConfig = {
+        method: 'GET',
+        headers: module_header,
+        url: `https://api.modulenft.xyz/api/v1/opensea/collection/info?type=${selectedCollection.address}`,
+      }
+
+      const requests = [
+        getTokensConfig,
+        getCollectionTraitsConfig,
+        getCollectionInfoConfig,
+      ].map((endpoint) => axios(endpoint))
+
+      setLoading(true)
+      setError(false)
+
+      const [tokenRes, traitsRes, collectionInfoRes] = await Promise.all(
+        requests
+      )
+
+      // fetch token metadata with nested API call
+      let newTokenArray =
+        tokenRes.data.count > 0 ? await getTokenMetadata() : []
+      console.log('new token array', newTokenArray)
+
+      setData((prevData) => ({
+        ...prevData,
+        collectionTraits: traitsRes.data,
+        collectionInfo: collectionInfoRes.data,
+        collectionNfts: newTokenArray,
+      }))
+
+      async function getTokenMetadata() {
+        try {
+          const tokenIdParams = tokenRes.data.tokens
+            .map((token) => `&tokenId=${token.tokenId}`)
+            .join('')
+
+          const getTokenMetadataConfig = {
+            method: 'get',
+            headers: module_header,
+            url:
+              `https://api.modulenft.xyz/api/v1/metadata/metadata?` +
+              tokenIdParams,
+            params: { contractAddress: selectedCollection.address },
+          }
+
+          const metadata = await axios(getTokenMetadataConfig).then(
+            (res) => res.data
+          )
+
+          console.log('--- fetched token metadata', metadata)
+
+          let newNftsArr = Object.entries(metadata.metadata).map((token) => {
+            let [token_id, metadata] = token
+            return {
+              token_id: token_id,
+              metadata: metadata,
+            }
+          })
+
+          return newNftsArr
+        } catch (e) {
+          console.log(e)
+        }
+      }
+    }
+
+    getTokens()
+      .catch((err) => {
+        if (axios.isCancel(err)) return
+        setError(true)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+    return () => cancel()
+  }, [selectedCollection, selectedTraits])
+
+  // Fetch collection Info
+
+  useEffect(() => {
+    if (!selectedCollection.address || selectedTraits.length > 0) return
+    let cancel
+
     collectionNfts_config = {
       ...collectionNfts_config,
       cancelToken: new axios.CancelToken((c) => (cancel = c)),
     }
+
+    const endpoints = [collectionNfts_config, collectionTraits_config]
+
     setLoading(true)
     setError(false)
-    axios(collectionNfts_config)
-      .then((nftsRes) => {
-        setData((prevData) => {
-          let nftsObj = prevData.collectionNfts
-          nftsObj = {
-            ...nftsObj,
-            nfts: [...nftsObj.nfts, ...nftsRes.data.nfts],
-          }
-          return {
-            ...prevData,
-            collectionNfts: nftsObj,
-          }
-        })
+    Promise.all(endpoints.map((endpoint) => axios(endpoint)))
+      .then(([nftsRes, traitsRes]) => {
+        console.log('--- collection nfts:', nftsRes)
+        console.log('--- collection traits:', traitsRes)
 
+        setData((prevData) => ({ ...prevData, collectionNfts: nftsRes.data }))
         setHasMore(nftsRes.data.total - pageNumber * 50 > 0)
+
+        // get all of collection's traits
+        setData((prevData) => ({
+          ...prevData,
+          collectionMetadata: traitsRes.data,
+        }))
       })
       .catch((err) => {
         if (axios.isCancel(err)) return
@@ -160,7 +266,44 @@ function useCollectionSearch(
       })
 
     return () => cancel()
-  }, [pageNumber])
+  }, [selectedCollection, selectedTraits])
+
+  // Fetch collection Info (NEW)
+  useEffect(() => {
+    if (!selectedCollection.address) return
+
+    let cancel
+
+    async function getCollectionInfo() {
+      const getCollectionInfoConfig = {
+        method: 'GET',
+        headers: module_header,
+        url: `https://api.modulenft.xyz/api/v1/opensea/collection/info?type=${selectedCollection.address}`,
+      }
+
+      setLoading(true)
+      setError(false)
+
+      const collectionInfo = await axios(getCollectionInfoConfig).then(
+        (res) => res.data
+      )
+
+      setData((prevData) => ({
+        ...prevData,
+        collectionInfo: collectionInfo,
+      }))
+    }
+
+    getCollectionInfo()
+      .catch((err) => {
+        if (axios.isCancel(err)) return
+        setError(true)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+    return () => cancel()
+  }, [selectedCollection])
 
   // Query collection nfts by selected traits
   useEffect(() => {
@@ -250,6 +393,44 @@ function useCollectionSearch(
 
     return () => cancel()
   }, [selectedTraits])
+
+  // Load more nfts when user scrolls to the bottom of page (infinite scoll feature)
+  useEffect(() => {
+    if (!selectedCollection.address || selectedTraits.length > 0) return // ignore first render
+
+    let cancel
+    collectionNfts_config = {
+      ...collectionNfts_config,
+      cancelToken: new axios.CancelToken((c) => (cancel = c)),
+    }
+    setLoading(true)
+    setError(false)
+    axios(collectionNfts_config)
+      .then((nftsRes) => {
+        setData((prevData) => {
+          let nftsObj = prevData.collectionNfts
+          nftsObj = {
+            ...nftsObj,
+            nfts: [...nftsObj.nfts, ...nftsRes.data.nfts],
+          }
+          return {
+            ...prevData,
+            collectionNfts: nftsObj,
+          }
+        })
+
+        setHasMore(nftsRes.data.total - pageNumber * 50 > 0)
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return
+        setError(true)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+
+    return () => cancel()
+  }, [pageNumber])
 
   return {
     loading,
