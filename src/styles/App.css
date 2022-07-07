@@ -71,6 +71,10 @@ main {
   border-radius: 9999px;
 }
 
+.search-result--total-supply {
+  margin-left: auto;
+}
+
 .collection--container {
   /* border: red 1px solid; */
   margin: 5em auto;

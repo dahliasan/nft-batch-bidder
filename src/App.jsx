@@ -1,6 +1,6 @@
-import { React, useState } from "react";
-import "./App.css";
-import SearchForm from "./components/SearchForm";
+import { React, useState } from 'react'
+import './styles/App.css'
+import SearchForm from './components/SearchForm'
 
 // create useAPI custom hook: https://scrimba.com/learn/reusablereact/a-promise-based-state-machine-c33KWyTy DONE
 
@@ -19,7 +19,7 @@ function App() {
     <main>
       <SearchForm />
     </main>
-  );
+  )
 }
 
-export default App;
+export default App
