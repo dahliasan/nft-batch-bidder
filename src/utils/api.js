@@ -38,6 +38,14 @@ export function createTraitsConfig(contractAddress) {
   }
 }
 
+export function createCollectionInfoConfig(contractAddress) {
+  return {
+    method: 'GET',
+    headers: module_header,
+    url: `https://api.modulenft.xyz/api/v1/opensea/collection/info?type=${contractAddress}`,
+  }
+}
+
 export function createSearchCollectionConfig(
   query,
   options,
@@ -66,34 +74,51 @@ export async function getTokensApi(
   options = {}
 ) {
   try {
-    const traitsParams =
-      selectedTraits.length > 0
-        ? selectedTraits.map((item) => `&stringTraits=${item.value}`).join('')
-        : ''
+    const config = createTokensConfig(
+      selectedTraits,
+      collection,
+      offset,
+      options
+    )
 
-    const config = {
-      method: 'GET',
-      url:
-        `https://api.modulenft.xyz/api/v1/opensea/collection/tokens?` +
-        traitsParams,
-      params: {
-        type: collection,
-        count: 25,
-        offset: offset,
-      },
-      headers: module_header,
-      ...options,
-    }
-
-    const tokens = await axios(config).then((res) => res.data)
-    console.log('fetching tokens', tokens)
-    return tokens
+    const response = await axios(config)
+    const data = response.data
+    console.log('fetched tokens...', response)
+    return data
   } catch (error) {
+    console.log('get token api error!')
     console.log(error)
   }
 }
 
-export async function getTokenMetadataApi(tokens, contractAddress) {
+export function createTokensConfig(
+  selectedTraits,
+  collection,
+  offset,
+  options
+) {
+  const traitsParams =
+    selectedTraits.length > 0
+      ? selectedTraits.map((item) => `&stringTraits=${item.value}`).join('')
+      : ''
+
+  const config = {
+    method: 'GET',
+    url:
+      `https://api.modulenft.xyz/api/v1/opensea/collection/tokens?` +
+      traitsParams,
+    params: {
+      type: collection,
+      count: 25,
+      offset: offset,
+    },
+    headers: module_header,
+    ...options,
+  }
+  return config
+}
+
+export async function getTokenMetadataApi(tokens, contractAddress, options) {
   try {
     const tokenIdParams = tokens.tokens
       .map((token) => `&tokenId=${token.tokenId}`)
@@ -105,12 +130,14 @@ export async function getTokenMetadataApi(tokens, contractAddress) {
       url:
         `https://api.modulenft.xyz/api/v1/metadata/metadata?` + tokenIdParams,
       params: { contractAddress: contractAddress },
+      ...options,
     }
 
-    const tokenMetadata = await axios(config).then((res) => res.data)
-    console.log('fetching token metadata...', tokenMetadata)
+    const response = await axios(config)
+    const data = response.data
+    console.log('fetched token metadata...', response)
 
-    return tokenMetadata
+    return data
   } catch (error) {
     console.log(error)
   }

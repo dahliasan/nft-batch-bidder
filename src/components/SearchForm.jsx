@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import SearchBar from './SearchBar.jsx'
 import useCollectionSearch from '../hooks/useCollectionSearch.js'
 import { resolveUrl, shortenString } from '../utils/helperFunctions.jsx'
-// import Select from 'react-select'
 import { createTraitOptions } from '../utils/filteringHelpers'
 import CollectionInfoHeader from './CollectionInfoHeader.jsx'
+import { nanoid } from 'nanoid'
 
 function SearchForm(props) {
   const [query, setQuery] = useState('')
@@ -13,7 +13,7 @@ function SearchForm(props) {
     address: '',
   })
   const [pageNumber, setPageNumber] = useState(1)
-  const [selectedTraits, setSelectedTraits] = useState([])
+  const [selectedTraits, setSelectedTraits] = useState(null)
   const { loading, error, hasMore, data } = useCollectionSearch(
     query,
     selectedCollection,
@@ -21,25 +21,32 @@ function SearchForm(props) {
     selectedTraits
   )
 
-  const { collectionSearch, collectionNfts, collectionTraits } = data || {}
+  const {
+    collectionSearch,
+    collectionNfts,
+    collectionTraits,
+    collectionInfo,
+    collectionNftStats,
+  } = data || {}
 
   const traitOptions = useMemo(() => {
     return createTraitOptions(collectionTraits)
   }, [collectionTraits])
 
   useEffect(() => {
-    setSelectedTraits([])
+    setSelectedTraits(null)
   }, [selectedCollection])
 
-  useEffect(() => {
-    if (selectedTraits.length === 0) setPageNumber(1)
-  }, [selectedTraits])
+  // useEffect(() => {
+  //   if (selectedTraits.length === 0) setPageNumber(1)
+  // }, [selectedTraits])
 
   // handle infinite scroll to load more nfts
   const observer = useRef()
   const lastNftElementRef = useCallback(
     (node) => {
-      if (loading) return
+      console.log('useCallback is triggered', observer)
+      if (loading.nfts) return
       if (observer.current) observer.current.disconnect()
       observer.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && hasMore) {
@@ -49,7 +56,7 @@ function SearchForm(props) {
       })
       if (node) observer.current.observe(node)
     },
-    [loading, hasMore]
+    [loading.nfts, hasMore]
   )
 
   function handleSearch(e) {
@@ -65,13 +72,13 @@ function SearchForm(props) {
 
   function renderCollectionInfo() {
     try {
-      const { contract, total } = collectionNfts
+      const { info } = collectionInfo
 
       return (
         <CollectionInfoHeader
-          image={contract.metadata.thumbnail_url}
-          name={contract.name}
-          totalSupply={total}
+          image={info.imageUrl}
+          name={info.name}
+          totalSupply={info.statistics.totalSupply}
           selectedTraits={selectedTraits}
           traitOptions={traitOptions}
           handleChange={setSelectedTraits}
@@ -84,8 +91,10 @@ function SearchForm(props) {
 
   function renderNfts() {
     try {
-      console.log('--- rendering nfts...', collectionNfts)
-      const { nfts } = collectionNfts || {}
+      const nfts = collectionNfts
+      const { totalCountLeft, count } = collectionNftStats || {}
+      console.log(totalCountLeft, count)
+      const totalCount = totalCountLeft + count
 
       // get nft html
       const nftsHtml = nfts.map((item, index) => {
@@ -99,7 +108,7 @@ function SearchForm(props) {
           value = shortenString(value)
 
           return (
-            <div key={`${index}`} className="nft-card--trait">
+            <div key={nanoid()} className="nft-card--trait">
               <div>{trait_type}</div>
               <div className="trait--value">{value}</div>
             </div>
@@ -127,11 +136,10 @@ function SearchForm(props) {
 
       return (
         <>
-          {!loading && (
+          {/* {!error && totalCount + ' items'} */}
+          {!loading.nfts && !error && (
             <div className="collection-nfts--container">{nftsHtml}</div>
           )}
-
-          <div>{loading && 'Loading...'}</div>
         </>
       )
     } catch (error) {
@@ -146,13 +154,13 @@ function SearchForm(props) {
         handleChange={handleSearch}
         searchResults={collectionSearch}
         handleClick={handleSearchClick}
-        loading={loading}
+        loading={loading.search}
       />
       <div className="collection--container">
-        {collectionNfts?.contract && renderCollectionInfo()}
-        {loading && 'loading...'}
+        {collectionInfo && renderCollectionInfo()}
+        {loading.nfts && 'loading...'}
         {error}
-        {collectionNfts?.nfts && renderNfts()}
+        {collectionNfts && renderNfts()}
       </div>
     </div>
   )
