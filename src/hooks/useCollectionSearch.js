@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { API_KEYS } from '../utils/api.js'
-
-const module_header = {
-  Accept: 'application/json',
-  'X-API-KEY': API_KEYS.module,
-}
+import {
+  createNftsConfig,
+  createSearchCollectionConfig,
+  createTraitsConfig,
+  module_header,
+} from '../utils/api.js'
 
 function useCollectionSearch(
   query,
@@ -20,11 +20,12 @@ function useCollectionSearch(
   const [hasMore, setHasMore] = useState(false)
   const [data, setData] = useState({})
 
+  // Reset nfts array when a new collection is selected
   useEffect(() => {
     setData((prevData) => ({ ...prevData, collectionNfts: null }))
   }, [selectedCollection])
 
-  // Collection search
+  // Search for collections
   useEffect(() => {
     let cancel
 
@@ -39,16 +40,10 @@ function useCollectionSearch(
       setLoading(true)
       setError(false)
 
-      const config = {
-        method: 'GET',
-        url: `https://api.modulenft.xyz/api/v1/central/utilities/search`,
-        headers: module_header,
-        params: {
-          term: query,
-          count: 5,
-          match: false,
-          isVerified: true,
-        },
+      let config = createSearchCollectionConfig(query)
+
+      config = {
+        ...config,
         cancelToken: new axios.CancelToken((c) => (cancel = c)),
       }
 
@@ -70,35 +65,24 @@ function useCollectionSearch(
   }, [query])
 
   // Fetch assets and collection traits after contract is selected
-  let collectionNfts_config = {
-    method: 'GET',
-    url: `https://api.nftport.xyz/v0/nfts/${selectedCollection.address}`,
-    params: { chain: 'ethereum', include: 'all', page_number: pageNumber },
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: API_KEYS.nftport,
-    },
-  }
-
-  let collectionTraits_config = {
-    method: 'GET',
-    headers: module_header,
-    url: `https://api.modulenft.xyz/api/v1/opensea/collection/traits?type=${selectedCollection.address}`,
-  }
+  let nftsConfig = createNftsConfig(selectedCollection, pageNumber)
+  let traitsConfig = createTraitsConfig(selectedCollection)
 
   useEffect(() => {
-    if (!selectedCollection.address || selectedTraits.length > 0) return
+    if (selectedCollection.address === '' || !selectedCollection.address) return // ignore the first render
+
     let cancel
 
-    collectionNfts_config = {
-      ...collectionNfts_config,
+    nftsConfig = {
+      ...nftsConfig,
       cancelToken: new axios.CancelToken((c) => (cancel = c)),
     }
 
-    const endpoints = [collectionNfts_config, collectionTraits_config]
+    const endpoints = [nftsConfig, traitsConfig]
 
     setLoading(true)
     setError(false)
+
     Promise.all(endpoints.map((endpoint) => axios(endpoint)))
       .then(([nftsRes, traitsRes]) => {
         console.log('--- collection nfts:', nftsRes)
@@ -122,7 +106,7 @@ function useCollectionSearch(
       })
 
     return () => cancel()
-  }, [selectedCollection, selectedTraits])
+  }, [selectedCollection])
 
   // Load more nfts when user scrolls to the bottom of page (infinite scoll feature)
   useEffect(() => {
