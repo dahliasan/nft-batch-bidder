@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import SearchResultCard from './SearchResultCard.jsx'
+import SearchBar from './SearchBar.jsx'
 import useCollectionSearch from '../hooks/useCollectionSearch.js'
 import { resolveUrl, shortenString } from '../utils/helperFunctions.jsx'
 import Select from 'react-select'
+import { createTraitOptions } from '../utils/filteringHelpers'
 
 function SearchForm(props) {
   const [query, setQuery] = useState('')
   const [selectedCollection, setSelectedCollection] = useState({
-    name: null,
-    address: null,
+    name: '',
+    address: '',
   })
   const [pageNumber, setPageNumber] = useState(1)
   const [selectedTraits, setSelectedTraits] = useState([])
@@ -22,7 +23,7 @@ function SearchForm(props) {
   const { collectionSearch, collectionNfts, collectionMetadata } = data || {}
 
   const traitOptions = useMemo(() => {
-    return createTraitOptions()
+    return createTraitOptions(collectionMetadata)
   }, [collectionMetadata])
 
   useEffect(() => {
@@ -49,56 +50,6 @@ function SearchForm(props) {
     },
     [loading, hasMore]
   )
-
-  function createTraitOptions() {
-    if (!collectionMetadata) return
-
-    const { info } = collectionMetadata
-
-    let optionsOutput = []
-
-    Object.entries(info).map((item) => {
-      let [type, dataArr] = item
-
-      dataArr.map((trait) => {
-        const { key, value, counts } = trait || {}
-
-        let optionsArr
-        if (value) {
-          // numeric traits only have one option
-          let { min, max } = value
-          optionsArr = [
-            {
-              label: `${min}-${max}`,
-              value: `${key}:${min}-${max}`,
-              min: min,
-              max: max,
-              count: '',
-            },
-          ]
-        } else if (counts) {
-          // string traits can have multiple options
-          optionsArr = counts.map((item) => {
-            let { value, count } = item
-            value = shortenString(value)
-            return {
-              label: value,
-              value: `${key}:${value}`,
-              count: count,
-            }
-          })
-        }
-
-        let groupOptionObj = {
-          label: key,
-          options: optionsArr,
-        }
-
-        optionsOutput.push(groupOptionObj)
-      })
-    })
-    return optionsOutput
-  }
 
   function handleSearch(e) {
     setQuery(e.target.value)
@@ -189,31 +140,13 @@ function SearchForm(props) {
 
   return (
     <div>
-      <div className="search--container">
-        <input
-          type="text"
-          id="search"
-          value={query}
-          onChange={handleSearch}
-          autoComplete="off"
-          placeholder="search for a collection"
-        />
-
-        {loading && !collectionNfts && 'loading...'}
-
-        <div className="search-results--container">
-          {collectionSearch &&
-            collectionSearch.collections.map((collection, index) => {
-              return (
-                <SearchResultCard
-                  key={index}
-                  collection={collection}
-                  handleClick={handleSearchClick}
-                />
-              )
-            })}
-        </div>
-      </div>
+      <SearchBar
+        query={query}
+        handleChange={handleSearch}
+        searchResults={collectionSearch}
+        handleClick={handleSearchClick}
+        loading={loading}
+      />
 
       {collectionNfts && renderNftSection()}
     </div>
