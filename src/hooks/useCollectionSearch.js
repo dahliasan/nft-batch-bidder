@@ -9,7 +9,7 @@ import {
   module_header,
 } from '../utils/api.js'
 
-function useCollectionSearch(
+export default function useCollectionSearch(
   query,
   selectedCollection,
   pageNumber,
@@ -65,13 +65,14 @@ function useCollectionSearch(
   }, [query])
 
   // Fetch assets and collection traits after contract is selected
-  let nftsConfig = createNftsConfig(selectedCollection, pageNumber)
-  let traitsConfig = createTraitsConfig(selectedCollection)
 
   useEffect(() => {
     if (selectedCollection.address === '' || !selectedCollection.address) return // ignore the first render
 
     let cancel
+
+    let nftsConfig = createNftsConfig(selectedCollection, pageNumber)
+    let traitsConfig = createTraitsConfig(selectedCollection)
 
     nftsConfig = {
       ...nftsConfig,
@@ -113,13 +114,16 @@ function useCollectionSearch(
     if (!selectedCollection.address || selectedTraits.length > 0) return // ignore first render
 
     let cancel
-    collectionNfts_config = {
-      ...collectionNfts_config,
+
+    let nftsConfig = createNftsConfig(selectedCollection, pageNumber)
+    nftsConfig = {
+      ...nftsConfig,
       cancelToken: new axios.CancelToken((c) => (cancel = c)),
     }
+
     setLoading(true)
     setError(false)
-    axios(collectionNfts_config)
+    axios(nftsConfig)
       .then((nftsRes) => {
         setData((prevData) => {
           let nftsObj = prevData.collectionNfts
@@ -242,5 +246,3 @@ function useCollectionSearch(
     data,
   }
 }
-
-export default useCollectionSearch
