@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import SearchBar from './SearchBar.jsx'
 import useCollectionSearch from '../hooks/useCollectionSearch.js'
 import { resolveUrl, shortenString } from '../utils/helperFunctions.jsx'
-import Select from 'react-select'
+// import Select from 'react-select'
 import { createTraitOptions } from '../utils/filteringHelpers'
+import CollectionInfoHeader from './CollectionInfoHeader.jsx'
 
 function SearchForm(props) {
   const [query, setQuery] = useState('')
@@ -20,11 +21,11 @@ function SearchForm(props) {
     selectedTraits
   )
 
-  const { collectionSearch, collectionNfts, collectionMetadata } = data || {}
+  const { collectionSearch, collectionNfts, collectionTraits } = data || {}
 
   const traitOptions = useMemo(() => {
-    return createTraitOptions(collectionMetadata)
-  }, [collectionMetadata])
+    return createTraitOptions(collectionTraits)
+  }, [collectionTraits])
 
   useEffect(() => {
     setSelectedTraits([])
@@ -62,80 +63,80 @@ function SearchForm(props) {
     setQuery('')
   }
 
-  function renderNftSection() {
-    console.log('--- rendering nfts...', collectionNfts)
-    const { contract, nfts, response, total } = collectionNfts || {}
+  function renderCollectionInfo() {
+    try {
+      const { contract, total } = collectionNfts
 
-    // get nft html
-    const nftsHtml = nfts.map((item, index) => {
-      const { token_id, metadata } = item || {}
-      const { name, attributes, image } = metadata || {}
-      const isLastElement = nfts.length === index + 1
+      return (
+        <CollectionInfoHeader
+          image={contract.metadata.thumbnail_url}
+          name={contract.name}
+          totalSupply={total}
+          selectedTraits={selectedTraits}
+          traitOptions={traitOptions}
+          handleChange={setSelectedTraits}
+        />
+      )
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
-      const attributesHtml = attributes?.map((item, index) => {
-        let { trait_type, value } = item || {}
+  function renderNfts() {
+    try {
+      console.log('--- rendering nfts...', collectionNfts)
+      const { nfts } = collectionNfts || {}
 
-        value = shortenString(value)
+      // get nft html
+      const nftsHtml = nfts.map((item, index) => {
+        const { token_id, metadata } = item || {}
+        const { name, attributes, image } = metadata || {}
+        const isLastElement = nfts.length === index + 1
+
+        const attributesHtml = attributes?.map((item, index) => {
+          let { trait_type, value } = item || {}
+
+          value = shortenString(value)
+
+          return (
+            <div key={`${index}`} className="nft-card--trait">
+              <div>{trait_type}</div>
+              <div className="trait--value">{value}</div>
+            </div>
+          )
+        })
 
         return (
-          <div key={`${index}`} className="nft-card--trait">
-            <div>{trait_type}</div>
-            <div className="trait--value">{value}</div>
+          <div
+            key={token_id}
+            ref={isLastElement ? lastNftElementRef : null}
+            className="nft-card--container"
+          >
+            <div className="overflow-wrapper">
+              <div className="nft-card--image-container">
+                <div className="nft-card--image">{resolveUrl(image)}</div>
+                <div className="nft-card--tokenId">{'#' + token_id}</div>
+                <div className="nft-card--image-overlay">{attributesHtml}</div>
+              </div>
+            </div>
+
+            <div className="nft-card--name">{name ? name : `#${token_id}`}</div>
           </div>
         )
       })
 
       return (
-        <div
-          key={token_id}
-          ref={isLastElement ? lastNftElementRef : null}
-          className="nft-card--container"
-        >
-          <div className="overflow-wrapper">
-            <div className="nft-card--image-container">
-              <div className="nft-card--image">{resolveUrl(image)}</div>
-              <div className="nft-card--tokenId">{'#' + token_id}</div>
-              <div className="nft-card--image-overlay">{attributesHtml}</div>
-            </div>
-          </div>
+        <>
+          {!loading && (
+            <div className="collection-nfts--container">{nftsHtml}</div>
+          )}
 
-          <div className="nft-card--name">{name ? name : `#${token_id}`}</div>
-        </div>
+          <div>{loading && 'Loading...'}</div>
+        </>
       )
-    })
-
-    return (
-      <div className="collection--container">
-        <div className="collection--info">
-          <img src={contract.metadata.thumbnail_url} />
-          <div className="collection--info-text-container">
-            <div className="collection--name">{contract.name}</div>
-            <div className="collection--total">Total Supply -- {total}</div>
-          </div>
-          <Select
-            id="select"
-            value={selectedTraits}
-            onChange={setSelectedTraits}
-            options={traitOptions}
-            isMulti
-            placeholder="filter by trait"
-            getOptionLabel={(option) => `${option.label} (${option.count})`}
-            formatGroupLabel={(data) =>
-              `${data.label} -- ${data.options.length}`
-            }
-          />
-        </div>
-
-        {loading && selectedTraits.length > 0 ? (
-          ''
-        ) : (
-          <div className="collection-nfts--container">{nftsHtml}</div>
-        )}
-
-        <div>{loading && 'Loading...'}</div>
-        <div>{error && 'ERROR, you are probably scrolling too fast'}</div>
-      </div>
-    )
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   return (
@@ -147,8 +148,12 @@ function SearchForm(props) {
         handleClick={handleSearchClick}
         loading={loading}
       />
-
-      {collectionNfts && renderNftSection()}
+      <div className="collection--container">
+        {collectionNfts?.contract && renderCollectionInfo()}
+        {loading && 'loading...'}
+        {error}
+        {collectionNfts?.nfts && renderNfts()}
+      </div>
     </div>
   )
 }

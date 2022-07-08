@@ -20,33 +20,108 @@ export const nftport_header = {
   Authorization: API_KEYS.nftport,
 }
 
-export function createNftsConfig(selectedCollection, pageNumber) {
+export function createNftsConfig(contractAddress, pageNumber, options) {
   return {
     method: 'GET',
-    url: `https://api.nftport.xyz/v0/nfts/${selectedCollection.address}`,
+    url: `https://api.nftport.xyz/v0/nfts/${contractAddress}`,
     params: { chain: 'ethereum', include: 'all', page_number: pageNumber },
     headers: nftport_header,
+    ...options,
   }
 }
 
-export function createTraitsConfig(selectedCollection) {
+export function createTraitsConfig(contractAddress) {
   return {
     method: 'GET',
     headers: module_header,
-    url: `https://api.modulenft.xyz/api/v1/opensea/collection/traits?type=${selectedCollection.address}`,
+    url: `https://api.modulenft.xyz/api/v1/opensea/collection/traits?type=${contractAddress}`,
   }
 }
 
-export function createSearchCollectionConfig(query) {
+export function createSearchCollectionConfig(
+  query,
+  options,
+  count = 5,
+  isVerified = true,
+  match = false
+) {
   return {
     method: 'GET',
     url: `https://api.modulenft.xyz/api/v1/central/utilities/search`,
     headers: module_header,
     params: {
       term: query,
-      count: 5,
-      match: false,
-      isVerified: true,
+      count: count,
+      match: match,
+      isVerified: isVerified,
     },
+    ...options,
   }
+}
+
+export async function getTokensApi(
+  collection,
+  selectedTraits,
+  offset = 0,
+  options = {}
+) {
+  try {
+    const traitsParams =
+      selectedTraits.length > 0
+        ? selectedTraits.map((item) => `&stringTraits=${item.value}`).join('')
+        : ''
+
+    const config = {
+      method: 'GET',
+      url:
+        `https://api.modulenft.xyz/api/v1/opensea/collection/tokens?` +
+        traitsParams,
+      params: {
+        type: collection,
+        count: 25,
+        offset: offset,
+      },
+      headers: module_header,
+      ...options,
+    }
+
+    const tokens = await axios(config).then((res) => res.data)
+    console.log('fetching tokens', tokens)
+    return tokens
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+export async function getTokenMetadataApi(tokens, contractAddress) {
+  try {
+    const tokenIdParams = tokens.tokens
+      .map((token) => `&tokenId=${token.tokenId}`)
+      .join('')
+
+    const config = {
+      method: 'get',
+      headers: module_header,
+      url:
+        `https://api.modulenft.xyz/api/v1/metadata/metadata?` + tokenIdParams,
+      params: { contractAddress: contractAddress },
+    }
+
+    const tokenMetadata = await axios(config).then((res) => res.data)
+    console.log('fetching token metadata...', tokenMetadata)
+
+    return tokenMetadata
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+export function normaliseNftData(tokenMetadata) {
+  return Object.entries(tokenMetadata.metadata).map((token) => {
+    let [token_id, metadata] = token
+    return {
+      token_id: token_id,
+      metadata: metadata,
+    }
+  })
 }
