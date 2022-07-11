@@ -1,6 +1,10 @@
 import { React, useState } from 'react'
-import './styles/App.css'
+import './styles/styles.css'
 import SearchForm from './components/SearchForm'
+import Navbar from './components/Navbar'
+import Home from './pages/Home'
+import CreateOffer from './pages/CreateOffer'
+import { Routes, Route } from 'react-router-dom'
 
 // create useAPI custom hook: https://scrimba.com/learn/reusablereact/a-promise-based-state-machine-c33KWyTy DONE
 
@@ -16,9 +20,16 @@ import SearchForm from './components/SearchForm'
 
 function App() {
   return (
-    <main>
-      <SearchForm />
-    </main>
+    <div className="App">
+      <Navbar />
+      <main>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/nft-batch-bidder" element={<Home />} />
+          <Route path="create-offer" element={<CreateOffer />} />
+        </Routes>
+      </main>
+    </div>
   )
 }
 
