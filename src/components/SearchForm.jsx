@@ -61,13 +61,13 @@ function SearchForm(props) {
 
   function handleSearch(e) {
     setQuery(e.target.value)
-    setPageNumber(1)
   }
 
   function handleSearchClick(name, contractAddress) {
     console.log(`--- collection ${name} ${contractAddress} is selected!`)
     setSelectedCollection({ name: name, address: contractAddress })
     setQuery('')
+    setPageNumber(1)
   }
 
   function renderCollectionInfo() {

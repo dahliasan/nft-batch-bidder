@@ -26,12 +26,19 @@ export default function useCollectionSearch(
 
   // Reset nfts array when a new collection is selected
   useEffect(() => {
-    setData((prevData) => ({ ...prevData, collectionNfts: null }))
+    setData({})
+    setError(null)
+    setLoading({})
+    setHasMore(null)
   }, [selectedCollection])
 
   // Search for collections
+
   useEffect(() => {
-    const abortCtrl = new AbortController()
+    console.log('---------------------')
+    console.log('collection search useEffect triggered')
+    console.log('---------------------')
+    const abortController = new AbortController()
 
     if (query === '') {
       setData((prevData) => ({ ...prevData, collectionSearch: null }))
@@ -45,7 +52,7 @@ export default function useCollectionSearch(
       setError(null)
 
       let config = createSearchCollectionConfig(query, {
-        signal: abortCtrl.signal,
+        signal: abortController.signal,
       })
 
       const data = await axios(config).then((res) => res.data)
@@ -55,25 +62,29 @@ export default function useCollectionSearch(
 
     searchCollections()
       .catch((error) => {
-        if (error.name == 'AbortError') return
-        setError(true)
+        if (error.name === 'CanceledError') return
+        console.log(error)
+        setError('The request failed. Please try again later.')
       })
       .finally(() => {
         setLoading((prev) => ({ ...prev, search: false }))
       })
 
-    return () => abortCtrl.abort()
+    return () => abortController.abort()
   }, [query])
 
   useEffect(() => {
+    console.log('---------------------')
+    console.log('selected useEffect triggered')
+    console.log('---------------------')
     if (selectedCollection.address === '' || !selectedCollection.address) return // ignore the first render
 
-    const abortCtrl = new AbortController()
+    const abortController = new AbortController()
     let contractAddress = selectedCollection.address
     let offset = 0
 
     let nftsConfig = createTokensConfig([], contractAddress, offset, {
-      signal: abortCtrl.signal,
+      signal: abortController.signal,
     })
     let traitsConfig = createTraitsConfig(contractAddress)
     let collectionInfoConfig = createCollectionInfoConfig(contractAddress)
@@ -115,21 +126,25 @@ export default function useCollectionSearch(
         console.log(normaliseNftData(metadata))
       })
       .catch((error) => {
-        if (error.name == 'AbortError') return
+        if (error.name === 'CanceledError') return
+        console.log(error)
         setError(error)
       })
       .finally(() => {
         setLoading((prev) => ({ ...prev, nfts: false }))
       })
 
-    return () => abortCtrl.abort()
+    return () => abortController.abort()
   }, [selectedCollection])
 
   // Fetch nfts after filtering traits are selected
   useEffect(() => {
+    console.log('---------------------')
+    console.log('filter traits useEffect triggered')
+    console.log('---------------------')
     if (!selectedTraits) return
 
-    const abortCtrl = new AbortController()
+    const abortController = new AbortController()
     let collectionName = data.collectionTraits.collection
     let contractAddress = selectedCollection.address
     let offset = 0
@@ -137,10 +152,11 @@ export default function useCollectionSearch(
     setLoading((prev) => ({ ...prev, nfts: true }))
     setError(null)
     getTokensApi(collectionName, selectedTraits, offset, {
-      signal: abortCtrl.signal,
+      signal: abortController.signal,
     })
       .then(async (tokens) => {
         try {
+          setLoading((prev) => ({ ...prev, nfts: true }))
           setHasMore(tokens.tokenCountLeft > 0)
           setData((prev) => ({ ...prev, collectionNftStats: tokens }))
 
@@ -149,7 +165,7 @@ export default function useCollectionSearch(
               tokens,
               contractAddress,
               {
-                signal: abortCtrl.signal,
+                signal: abortController.signal,
               }
             )
             setData((prev) => ({
@@ -166,19 +182,18 @@ export default function useCollectionSearch(
         }
       })
       .catch((error) => {
-        console.log('error 2')
-        console.log(error)
-        if (error.name == 'AbortError') return
+        if (error.name === 'CanceledError') return
+        console.log('error 2', error)
         setError(error)
       })
       .finally(() => {
         setLoading((prev) => ({ ...prev, nfts: false }))
       })
 
-    return () => abortCtrl.abort()
+    return () => abortController.abort()
   }, [selectedTraits])
 
-  // // Load more nfts when user scrolls to the bottom of page (infinite scoll feature)
+  // Load more nfts when user scrolls to the bottom of page (infinite scoll feature)
   // useEffect(() => {
   //   if (pageNumber === 1) return
 

@@ -139,16 +139,22 @@ export async function getTokenMetadataApi(tokens, contractAddress, options) {
 
     return data
   } catch (error) {
+    if (error.name === 'CanceledError') return
     console.log(error)
   }
 }
 
 export function normaliseNftData(tokenMetadata) {
-  return Object.entries(tokenMetadata.metadata).map((token) => {
-    let [token_id, metadata] = token
-    return {
-      token_id: token_id,
-      metadata: metadata,
-    }
-  })
+  try {
+    return Object.entries(tokenMetadata.metadata).map((token) => {
+      let [token_id, metadata] = token
+      return {
+        token_id: token_id,
+        metadata: metadata,
+      }
+    })
+  } catch (error) {
+    console.log(error)
+    return []
+  }
 }
