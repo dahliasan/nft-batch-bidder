@@ -4,12 +4,12 @@ import { Link } from 'react-router-dom'
 export default function Navbar() {
   return (
     <nav className="nav">
-      <Link to="/" className="site-title">
+      <Link to="/nft-batch-bidder" className="site-title">
         Home
       </Link>
       <ul>
         <li>
-          <Link to="create-offer" className="site-link">
+          <Link to="/nft-batch-bidder/create-offer" className="site-link">
             Manual Offer
           </Link>
         </li>
