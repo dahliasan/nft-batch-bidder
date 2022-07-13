@@ -1,10 +1,9 @@
-import { React, useEffect } from 'react'
+import { React } from 'react'
 import './styles/styles.css'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import CreateOffer from './pages/CreateOffer'
 import { Routes, Route } from 'react-router-dom'
-import { useMoralis } from 'react-moralis'
 
 function App() {
   return (
