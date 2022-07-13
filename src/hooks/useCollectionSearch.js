@@ -2,165 +2,234 @@
 
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { API_KEYS } from '../utils/api.js'
+import {
+  createNftsConfig,
+  createSearchCollectionConfig,
+  createTraitsConfig,
+  createTokensConfig,
+  createCollectionInfoConfig,
+  getTokensApi,
+  getTokenMetadataApi,
+  normaliseNftData,
+} from '../utils/api.js'
 
-function useCollectionSearch(
+export default function useCollectionSearch(
   query,
-  selectedContractAddress,
+  selectedCollection,
   pageNumber,
   selectedTraits
 ) {
-  const [loading, setLoading] = useState(false) // change loading to an object
-  const [error, setError] = useState(false)
-  const [collections, setCollections] = useState(null) // create a response object and consolidate the different responses inside.
-  const [collectionNfts, setCollectionNfts] = useState(null)
+  const [loading, setLoading] = useState({}) // change loading to an object
+  const [error, setError] = useState(null)
   const [hasMore, setHasMore] = useState(false)
-  const [collectionInfo, setCollectionInfo] = useState(null)
+  const [data, setData] = useState({})
+
+  // Reset nfts array when a new collection is selected
+  useEffect(() => {
+    setData({})
+    setError(null)
+    setLoading({})
+    setHasMore(null)
+  }, [selectedCollection])
+
+  // Search for collections
 
   useEffect(() => {
-    setCollectionNfts(null)
-  }, [selectedContractAddress])
+    console.log('---------------------')
+    console.log('collection search useEffect triggered')
+    console.log('---------------------')
+    const abortController = new AbortController()
 
-  // Fetch collections from search query
-  useEffect(() => {
-    let cancel
-    const config = {
-      method: 'GET',
-      url: `https://ubiquity.api.blockdaemon.com/v1/nft/ethereum/mainnet/collections/search`,
-      headers: { Authorization: `Bearer ${API_KEYS.ubiquity}` },
-      params: {
-        name: query,
-      },
-      cancelToken: new axios.CancelToken((c) => (cancel = c)),
-    }
-    setLoading(true)
-    setError(false)
-    if (query) {
-      axios(config)
-        .then((res) => {
-          console.log('search collections', res.data)
-          setCollections(res.data)
-          setLoading(false)
-        })
-        .catch((err) => {
-          if (axios.isCancel(err)) return
-          setError(true)
-        })
-    } else {
-      setCollections(null)
-      setLoading(false)
-      setError(false)
+    if (query === '') {
+      setData((prevData) => ({ ...prevData, collectionSearch: null }))
+      setLoading((prev) => ({ ...prev, search: false }))
+      setError(null)
+      return
     }
 
-    return () => cancel()
-  }, [query])
+    async function searchCollections() {
+      setLoading((prev) => ({ ...prev, search: true }))
+      setError(null)
 
-  // Fetch assets after a collection is selected
-  let getCollectionNftsConfig = {
-    method: 'GET',
-    url: `https://api.nftport.xyz/v0/nfts/${selectedContractAddress}`,
-    params: { chain: 'ethereum', include: 'all', page_number: pageNumber },
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: API_KEYS.nftport,
-    },
-  }
-
-  // we use this API endpoint to get collection's opensea slug
-  let getContractInfoConfig = {
-    method: 'GET',
-    url: `https://api.opensea.io/api/v1/asset_contract/${selectedContractAddress}`,
-  }
-
-  useEffect(() => {
-    let cancel
-
-    getCollectionNftsConfig = {
-      ...getCollectionNftsConfig,
-      cancelToken: new axios.CancelToken((c) => (cancel = c)),
-    }
-
-    const contractEndpoints = [getCollectionNftsConfig, getContractInfoConfig]
-
-    setLoading(true)
-    setError(false)
-    if (selectedContractAddress) {
-      Promise.all(contractEndpoints.map((endpoint) => axios(endpoint)))
-        .then(([nftsRes, contractRes]) => {
-          console.log(nftsRes, contractRes)
-
-          setCollectionNfts(nftsRes.data)
-          setHasMore(nftsRes.data.total - pageNumber * 50 > 0)
-
-          // get all of collection's traits and values from Opensea API
-          let slug = contractRes.data.collection.slug
-          const getCollectionInfoConfig = {
-            method: 'get',
-            url: `https://api.opensea.io/api/v1/collection/${slug}`,
-          }
-          axios(getCollectionInfoConfig).then((res) => {
-            console.log(res.data)
-            setCollectionInfo(res.data.collection)
-          })
-        })
-        .catch((err) => {
-          if (axios.isCancel(err)) return
-          setError(true)
-        })
-        .finally(() => {
-          setLoading(false)
-        })
-    } else {
-      setLoading(false)
-      setError(false)
-    }
-
-    return () => cancel()
-  }, [selectedContractAddress])
-
-  // Load more nfts when user scrolls to the bottom of page
-  useEffect(() => {
-    if (!selectedContractAddress) return // ignore first render
-    let cancel
-    getCollectionNftsConfig = {
-      ...getCollectionNftsConfig,
-      cancelToken: new axios.CancelToken((c) => (cancel = c)),
-    }
-    setLoading(true)
-    setError(false)
-    axios(getCollectionNftsConfig)
-      .then((nftsRes) => {
-        setCollectionNfts((prevData) => {
-          return {
-            ...prevData,
-            nfts: [...prevData.nfts, ...nftsRes.data.nfts],
-          }
-        })
-        setHasMore(nftsRes.data.total - pageNumber * 50 > 0)
+      let config = createSearchCollectionConfig(query, {
+        signal: abortController.signal,
       })
-      .catch((err) => {
-        if (axios.isCancel(err)) return
-        setError(true)
+
+      const data = await axios(config).then((res) => res.data)
+      console.log('--- search collections', data)
+      setData((prevData) => ({ ...prevData, collectionSearch: data }))
+    }
+
+    searchCollections()
+      .catch((error) => {
+        if (error.name === 'CanceledError') return
+        console.log(error)
+        setError('The request failed. Please try again later.')
       })
       .finally(() => {
-        setLoading(false)
+        setLoading((prev) => ({ ...prev, search: false }))
       })
 
-    return () => cancel()
-  }, [pageNumber])
+    return () => abortController.abort()
+  }, [query])
 
   useEffect(() => {
+    console.log('---------------------')
+    console.log('selected useEffect triggered')
+    console.log('---------------------')
+    if (selectedCollection.address === '' || !selectedCollection.address) return // ignore the first render
+
+    const abortController = new AbortController()
+    let contractAddress = selectedCollection.address
+    let offset = 0
+
+    let nftsConfig = createTokensConfig([], contractAddress, offset, {
+      signal: abortController.signal,
+    })
+    let traitsConfig = createTraitsConfig(contractAddress)
+    let collectionInfoConfig = createCollectionInfoConfig(contractAddress)
+    const endpoints = [nftsConfig, traitsConfig, collectionInfoConfig]
+
+    setLoading((prev) => ({ ...prev, nfts: true }))
+    setError(null)
+
+    Promise.all(endpoints.map((endpoint) => axios(endpoint)))
+      .then(([tokensRes, traitsRes, infoRes]) => {
+        console.log('collection nfts:', tokensRes)
+        console.log('collection traits:', traitsRes)
+        console.log('collection info:', infoRes)
+
+        setData((prevData) => ({
+          ...prevData,
+          collectionTraits: traitsRes.data,
+          collectionInfo: infoRes.data,
+        }))
+
+        return tokensRes.data
+      })
+      .then((tokens) => {
+        setData((prev) => ({ ...prev, collectionNftStats: tokens }))
+        setHasMore(tokens.tokenCountLeft > 0)
+        if (tokens.count > 0) {
+          return getTokenMetadataApi(tokens, contractAddress)
+        } else {
+          setError('No nfts found :(')
+          throw 'No nfts found :('
+        }
+      })
+      .then((metadata) => {
+        setData((prev) => ({
+          ...prev,
+          collectionNfts: [...normaliseNftData(metadata)],
+        }))
+
+        console.log(normaliseNftData(metadata))
+      })
+      .catch((error) => {
+        if (error.name === 'CanceledError') return
+        console.log(error)
+        setError(error)
+      })
+      .finally(() => {
+        setLoading((prev) => ({ ...prev, nfts: false }))
+      })
+
+    return () => abortController.abort()
+  }, [selectedCollection])
+
+  // Fetch nfts after filtering traits are selected
+  useEffect(() => {
+    console.log('---------------------')
+    console.log('filter traits useEffect triggered')
+    console.log('---------------------')
     if (!selectedTraits) return
+
+    const abortController = new AbortController()
+    let collectionName = data.collectionTraits.collection
+    let contractAddress = selectedCollection.address
+    let offset = 0
+
+    setLoading((prev) => ({ ...prev, nfts: true }))
+    setError(null)
+    getTokensApi(collectionName, selectedTraits, offset, {
+      signal: abortController.signal,
+    })
+      .then(async (tokens) => {
+        try {
+          setLoading((prev) => ({ ...prev, nfts: true }))
+          setHasMore(tokens.tokenCountLeft > 0)
+          setData((prev) => ({ ...prev, collectionNftStats: tokens }))
+
+          if (tokens.count > 0) {
+            const metadata = await getTokenMetadataApi(
+              tokens,
+              contractAddress,
+              {
+                signal: abortController.signal,
+              }
+            )
+            setData((prev) => ({
+              ...prev,
+              collectionNfts: [...normaliseNftData(metadata)],
+            }))
+          } else {
+            setError('Error: no matching nfts found :(')
+          }
+        } catch (error) {
+          console.log('error 1')
+          console.log(error)
+          setError('Error: no matching nfts found :(')
+        }
+      })
+      .catch((error) => {
+        if (error.name === 'CanceledError') return
+        console.log('error 2', error)
+        setError(error)
+      })
+      .finally(() => {
+        setLoading((prev) => ({ ...prev, nfts: false }))
+      })
+
+    return () => abortController.abort()
   }, [selectedTraits])
 
+  // Load more nfts when user scrolls to the bottom of page (infinite scoll feature)
+  // useEffect(() => {
+  //   if (pageNumber === 1) return
+
+  //   let contractAddress = selectedCollection.address
+  //   let nftsConfig = createNftsConfig(contractAddress, pageNumber)
+
+  //   setLoading(true)
+  //   setError(null)
+  //   axios(nftsConfig)
+  //     .then((nftsRes) => {
+  //       setData((prev) => {
+  //         let nftsObj = prev.collectionNfts
+  //         nftsObj = {
+  //           ...nftsObj,
+  //           nfts: [...nftsObj.nfts, ...nftsRes.data.nfts],
+  //         }
+  //         return {
+  //           ...prev,
+  //           collectionNfts: nftsObj,
+  //         }
+  //       })
+
+  //       setHasMore(nftsRes.data.total - pageNumber * 50 > 0)
+  //     })
+  //     .catch((error) => {
+  //       setError(error)
+  //     })
+  //     .finally(() => {
+  //       setLoading(false)
+  //     })
+  // }, [pageNumber])
+
   return {
-    collections,
     loading,
     error,
-    collectionNfts,
     hasMore,
-    collectionInfo,
+    data,
   }
 }
-
-export default useCollectionSearch

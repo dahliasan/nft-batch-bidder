@@ -1,36 +1,52 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import SearchResultCard from './SearchResultCard.jsx'
+import SearchBar from './SearchBar.jsx'
 import useCollectionSearch from '../hooks/useCollectionSearch.js'
-import { renderFile, shortenAddress } from '../utils/helperFunctions.jsx'
-import Select from 'react-select'
+import { resolveUrl, shortenString } from '../utils/helperFunctions.jsx'
+import { createTraitOptions } from '../utils/filteringHelpers'
+import CollectionInfoHeader from './CollectionInfoHeader.jsx'
+import { nanoid } from 'nanoid'
 
 function SearchForm(props) {
   const [query, setQuery] = useState('')
-  const [selectedContractAddress, setSelectedContractAddress] = useState(null)
+  const [selectedCollection, setSelectedCollection] = useState({
+    name: '',
+    address: '',
+  })
   const [pageNumber, setPageNumber] = useState(1)
   const [selectedTraits, setSelectedTraits] = useState(null)
-  const {
-    collections,
-    loading,
-    error,
-    collectionNfts,
-    hasMore,
-    collectionInfo,
-  } = useCollectionSearch(query, selectedContractAddress, pageNumber)
+  const { loading, error, hasMore, data } = useCollectionSearch(
+    query,
+    selectedCollection,
+    pageNumber,
+    selectedTraits
+  )
 
-  const filterOptions = useMemo(() => {
-    return createFilterOptions()
-  }, [collectionInfo])
+  const {
+    collectionSearch,
+    collectionNfts,
+    collectionTraits,
+    collectionInfo,
+    collectionNftStats,
+  } = data || {}
+
+  const traitOptions = useMemo(() => {
+    return createTraitOptions(collectionTraits)
+  }, [collectionTraits])
 
   useEffect(() => {
     setSelectedTraits(null)
-  }, [selectedContractAddress])
+  }, [selectedCollection])
+
+  // useEffect(() => {
+  //   if (selectedTraits.length === 0) setPageNumber(1)
+  // }, [selectedTraits])
 
   // handle infinite scroll to load more nfts
   const observer = useRef()
   const lastNftElementRef = useCallback(
     (node) => {
-      if (loading) return
+      console.log('useCallback is triggered', observer)
+      if (loading.nfts) return
       if (observer.current) observer.current.disconnect()
       observer.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && hasMore) {
@@ -40,158 +56,112 @@ function SearchForm(props) {
       })
       if (node) observer.current.observe(node)
     },
-    [loading, hasMore]
+    [loading.nfts, hasMore]
   )
-
-  function createFilterOptions() {
-    if (!collectionInfo) return
-    const { traits } = collectionInfo
-    const filterOptions = Object.entries(traits).map((item) => {
-      let [label, options] = item
-
-      let optionsArray = []
-      for (const key in options) {
-        let obj = {
-          label: key,
-          value: `${label}:${key}`,
-          count: options[key],
-        }
-        optionsArray.push(obj)
-      }
-
-      return {
-        label: label,
-        options: optionsArray,
-      }
-    })
-    return filterOptions
-  }
 
   function handleSearch(e) {
     setQuery(e.target.value)
+  }
+
+  function handleSearchClick(name, contractAddress) {
+    console.log(`--- collection ${name} ${contractAddress} is selected!`)
+    setSelectedCollection({ name: name, address: contractAddress })
+    setQuery('')
     setPageNumber(1)
   }
 
-  function handleSearchClick(data) {
-    console.log('a collection is selected!')
-    setSelectedContractAddress(data.contracts[0])
-    setQuery('')
+  function renderCollectionInfo() {
+    try {
+      const { info } = collectionInfo
+
+      return (
+        <CollectionInfoHeader
+          image={info.imageUrl}
+          name={info.name}
+          totalSupply={info.statistics.totalSupply}
+          selectedTraits={selectedTraits}
+          traitOptions={traitOptions}
+          handleChange={setSelectedTraits}
+        />
+      )
+    } catch (error) {
+      console.log(error)
+    }
   }
 
-  function renderNftSection() {
-    const { contract, nfts, response, total } = collectionNfts
+  function renderNfts() {
+    try {
+      const nfts = collectionNfts
+      const { totalCountLeft, count } = collectionNftStats || {}
+      console.log(totalCountLeft, count)
+      const totalCount = totalCountLeft + count
 
-    // get nft html
-    const nftsHtml = nfts.map((item, index) => {
-      const metadata = item.metadata
-      const { name, attributes } = metadata || {}
-      const { token_id, file_url } = item
-      const isLastElement = nfts.length === index + 1
+      // get nft html
+      const nftsHtml = nfts.map((item, index) => {
+        const { token_id, metadata } = item || {}
+        const { name, attributes, image } = metadata || {}
+        const isLastElement = nfts.length === index + 1
 
-      const attributesHtml = attributes?.map((item) => {
-        let { trait_type, value, display_type } = item || {}
+        const attributesHtml = attributes?.map((item, index) => {
+          let { trait_type, value } = item || {}
 
-        if (
-          typeof value === 'string' &&
-          value.includes('0x') &&
-          value.length > 20
-        ) {
-          value = shortenAddress(value)
-        } else if (
-          typeof value === 'string' &&
-          value.includes('Ξ') &&
-          value.length > 20
-        ) {
-          value = shortenAddress(value, 4, 2)
-        }
+          value = shortenString(value)
+
+          return (
+            <div key={nanoid()} className="nft-card--trait">
+              <div>{trait_type}</div>
+              <div className="trait--value">{value}</div>
+            </div>
+          )
+        })
 
         return (
-          <div key={trait_type} className="nft-card--trait">
-            <div>{trait_type}</div>
-            <div className="trait--value">{value}</div>
+          <div
+            key={token_id}
+            ref={isLastElement ? lastNftElementRef : null}
+            className="nft-card--container"
+          >
+            <div className="overflow-wrapper">
+              <div className="nft-card--image-container">
+                <div className="nft-card--image">{resolveUrl(image)}</div>
+                <div className="nft-card--tokenId">{'#' + token_id}</div>
+                <div className="nft-card--image-overlay">{attributesHtml}</div>
+              </div>
+            </div>
+
+            <div className="nft-card--name">{name ? name : `#${token_id}`}</div>
           </div>
         )
       })
 
       return (
-        <div
-          key={index}
-          ref={isLastElement ? lastNftElementRef : null}
-          className="nft-card--container"
-        >
-          <div className="overflow-wrapper">
-            <div className="nft-card--image-container">
-              <div className="nft-card--image">{renderFile(file_url)}</div>
-              <div className="nft-card--tokenId">{'#' + token_id}</div>
-              <div className="nft-card--image-overlay">{attributesHtml}</div>
-            </div>
-          </div>
-
-          <div className="nft-card--name">{name ? name : `#${token_id}`}</div>
-        </div>
+        <>
+          {/* {!error && totalCount + ' items'} */}
+          {!loading.nfts && !error && (
+            <div className="collection-nfts--container">{nftsHtml}</div>
+          )}
+        </>
       )
-    })
-
-    return (
-      <div className="collection--container">
-        <div className="collection--info">
-          <img src={contract.metadata.thumbnail_url} />
-          <div className="collection--info-text-container">
-            <div className="collection--name">{contract.name}</div>
-            <div className="collection--total">Total Supply -- {total}</div>
-          </div>
-          <Select
-            id="select"
-            value={selectedTraits}
-            onChange={setSelectedTraits}
-            options={filterOptions}
-            isMulti
-            placeholder="filter by trait"
-            getOptionLabel={(option) => `${option.label} (${option.count})`}
-            formatGroupLabel={(data) =>
-              `${data.label} -- ${data.options.length}`
-            }
-          />
-        </div>
-
-        <div className="collection-nfts--container">{nftsHtml}</div>
-        <div>{loading && 'Loading...'}</div>
-        <div>{error && 'ERROR, you are probably scrolling too fast'}</div>
-      </div>
-    )
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   return (
     <div>
-      <div className="search--container">
-        <input
-          type="text"
-          id="search"
-          value={query}
-          onChange={handleSearch}
-          autoComplete="off"
-          placeholder="search for a collection"
-        />
-
-        {loading && !collectionNfts && 'loading...'}
-
-        <div className="search-results--container">
-          {collections &&
-            collections.data
-              .filter((item) => item.verified == true)
-              .map((item, index) => {
-                return (
-                  <SearchResultCard
-                    key={index}
-                    data={item}
-                    handleClick={handleSearchClick}
-                  />
-                )
-              })}
-        </div>
+      <SearchBar
+        query={query}
+        handleChange={handleSearch}
+        searchResults={collectionSearch}
+        handleClick={handleSearchClick}
+        loading={loading.search}
+      />
+      <div className="collection--container">
+        {collectionInfo && renderCollectionInfo()}
+        {loading.nfts && 'loading...'}
+        {error}
+        {collectionNfts && renderNfts()}
       </div>
-
-      {collectionNfts && renderNftSection()}
     </div>
   )
 }

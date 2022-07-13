@@ -1,7 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #fefefe;
+  font-family: 'Jua', sans-serif;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
 
 * {
   box-sizing: border-box;
+}
+
+.nav {
+  padding: 1em;
+  display: flex;
+  justify-items: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.nav a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.nav a:hover {
+  opacity: 0.5;
 }
 
 img {
@@ -11,8 +49,7 @@ img {
 main {
   text-align: center;
   vertical-align: center;
-  margin-top: 5em;
-  font-family: 'Jua', sans-serif;
+  margin-top: 2em;
 }
 
 .search--container {
@@ -69,6 +106,10 @@ main {
   width: 50px;
   margin-right: 10px;
   border-radius: 9999px;
+}
+
+.search-result--total-supply {
+  margin-left: auto;
 }
 
 .collection--container {
